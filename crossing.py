@@ -4,9 +4,11 @@ from dataclasses import dataclass
 import random
 import tsplib95
 from itertools import permutations
-from numpy import random as np_rand
+import numpy
 
 problem = tsplib95.load('C:\\ALL_tsp\\gr17.tsp\\gr17.tsp')
+
+population_size = 10
 
 #czy to wszystko potrzebne?
 #tour = [0 for j in range(int(sizeTab))]
@@ -204,10 +206,12 @@ def main():
 
     tabulist = []
     for k in range(5):
-        parents = getBest(tournament(island))
+        #parents = getBest(tournament(island))
+        parents = roulette(island.creatures)
 
         while parents in tabulist:
-            parents = getBest(tournament(island))
+            parents = roulette(island.creatures)
+            #parents = getBest(tournament(island))
 
         tabulist.append(parents)
 
@@ -408,8 +412,6 @@ def heuristic_mutation(tour):
 
 
 
-
-
 def crossingCX(parent1, parent2):
     j = random.randint(0,sizeTab-1)
     k = random.randint(0,sizeTab-1)
@@ -489,9 +491,46 @@ def crossingCX(parent1, parent2):
     crossed_creatures.append(copy.deepcopy(c5))
 
 
-def roulette():
+def roulette(lista_osobnikow):
+    p = []
 
+    for i in range(int(0.1*population_size)):
+        p.append(0.18)
 
+    for i in range(int(0.3 * population_size)):
+        p.append(0.15)
+
+    for i in range(int(0.2 * population_size)):
+        p.append(0.1)
+
+    for i in range(int(0.3 * population_size)):
+        p.append(0.05)
+
+    for i in range(int(0.1 * population_size)):
+        p.append(0.02)
+
+    lista_osobnikow = sorted(lista_osobnikow, key=lambda x: x.fenotyp)
+    indeksy = []
+
+    for i in range(population_size):
+        indeksy.append(i)
+
+    list = []
+    tabu = []
+
+    for i in range(2):
+        losowa = random.choices(indeksy, p)
+        #losowa = numpy.random.choice(numpy.arange(0, population_size), p)
+        while losowa[0] in tabu:
+            losowa = random.choices(indeksy, p)
+            #losowa = numpy.random.choice(numpy.arange(0, population_size), p)
+
+        list.append(lista_osobnikow[losowa[0]])
+        tabu.append(losowa)
+
+    return list
+
+    #mamy 2 losowych osobnikow ale wybranych z rozkładem jakims tam
 
 
 if __name__ == "__main__":
@@ -500,8 +539,6 @@ if __name__ == "__main__":
 
 
 #1 osobnik z 2opta
-
-#zrobić ruletkę
 
 #elitaryzm ???
 

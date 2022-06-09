@@ -3,19 +3,16 @@ import itertools
 from dataclasses import dataclass
 import random
 import tsplib95
-from itertools import permutations
-import numpy
 
-problem = tsplib95.load('C:\\Users\\holub\\OneDrive - Politechnika Wroclawska\\Desktop\\ALL_atsp\\att532.tsp\\ftv47.atsp')
+problem = tsplib95.load('C:\\Users\\holub\\OneDrive - Politechnika Wroclawska\\Desktop\\ALL_atsp\\att532.tsp\\brazil58.tsp')
 
 population_size = 100
 zmienna = list(problem.get_nodes())
 sizeTab = len(zmienna)
 matr = [[0 for _ in range(sizeTab)] for _ in range(sizeTab)]
-
 crossed_creatures_list = [[] for _ in range(7)]
-
 id_counter = 0
+
 
 @dataclass
 class Creature:
@@ -24,6 +21,8 @@ class Creature:
     fenotyp: int
     wiek: int
     wyspa: int
+    ppb: float
+    fitness: float
 
 
 @dataclass
@@ -46,12 +45,11 @@ def crossing(tour1, tour2, id_wyspy):
 
     j = tour3[random.randint(0, sizeTab - 1)]
     k = tour3[random.randint(0, sizeTab - 1)]
-    if (k < j):
+    if k < j:
         m = j
         j = k
         k = m
 
-    # przepisywanie elementów do pivota, za pivotem crossowanie
     for i in range(j, k + 1):
         tour4[i] = tour1[i]
         tour5[i] = tour2[i]
@@ -60,9 +58,8 @@ def crossing(tour1, tour2, id_wyspy):
     helptour2 = [0 for _ in range(sizeTab - (k - j + 1))]
     index = 0
 
-    # przepisywanie do tablic pomocnicych genotyp bez odziedziczonych miast
     for i in range(0, sizeTab):
-        if (i < j or i > k):
+        if i < j or i > k:
             helptour[index] = tour2[i]
             helptour2[index] = tour1[i]
             index = index + 1
@@ -71,31 +68,24 @@ def crossing(tour1, tour2, id_wyspy):
     index2 = 0
     for i in range(0, sizeTab):
         for i2 in range(sizeTab - (k - j + 1)):
-            # jesli element potarza sie to go przepisujemy (do 1 rodzica)
-            if (tour1[i] == helptour[i2]):
-                while (index >= j and index <= k):
+            if tour1[i] == helptour[i2]:
+                while j <= index <= k:
                     index = index + 1
                 tour5[index] = tour1[i]
                 index = index + 1
-                # do 2 rodzica analogicznie
-            if (tour2[i] == helptour2[i2]):
-                while (index2 >= j and index2 <= k):
+            if tour2[i] == helptour2[i2]:
+                while j <= index2 <= k:
                     index2 = index2 + 1
                 tour4[index2] = tour2[i]
                 index2 = index2 + 1
 
     global id_counter
-    c1 = Creature(1, tour1, destination(sizeTab, matr, tour1), 0,0)
-    c2 = Creature(1, tour2, destination(sizeTab, matr, tour2), 0, 0)
-    c4 = Creature(id_counter, tour4, destination(sizeTab, matr, tour4), 0, id_wyspy)
-    c5 = Creature(id_counter + 1, tour5, destination(sizeTab, matr, tour5), 0, id_wyspy)
+    c1 = Creature(1, tour1, destination(sizeTab, matr, tour1), 0, 0, 0, 1 / (destination(sizeTab, matr, tour1)))
+    c2 = Creature(1, tour2, destination(sizeTab, matr, tour2), 0, 0, 0, 1 / (destination(sizeTab, matr, tour2)))
+    c4 = Creature(id_counter, tour4, destination(sizeTab, matr, tour4), 0, id_wyspy, 0, 1 / (destination(sizeTab, matr, tour4)))
+    c5 = Creature(id_counter + 1, tour5, destination(sizeTab, matr, tour5), 0, id_wyspy, 0, 1 / (destination(sizeTab, matr, tour5)))
 
     id_counter += 2
-    # print("Creature1 before crossing: ", c1.fenotyp, " ", c1.genotyp)
-    # print("Creature2 before crossing: ", c2.fenotyp, " ", c2.genotyp)
-    # print("Creature1 after crossing:  ", c4.fenotyp, " ", c4.genotyp)
-    # print("Creature2 after crossing:  ", c5.fenotyp, " ", c5.genotyp)
-    # print()
 
     global crossed_creatures_list
     crossed_creatures_list[id_wyspy].append(copy.deepcopy(c4))
@@ -112,14 +102,12 @@ def destination(sizeTab, matr, tour3):
 
 
 def getBest(list):
-    # posortujemy liste po fentotypach
     list = sorted(list, key=lambda x: x.fenotyp)
-
     result = []
     result.append(list[0])
     result.append(list[1])
-
     return result
+
 
 def fill_matrix(sizeTab, matr, l):
     for i in range(0, sizeTab):
@@ -128,12 +116,11 @@ def fill_matrix(sizeTab, matr, l):
             matr[i][j] = problem.get_weight(*edge)
 
 
-# dlaczego tabu list jest tutaj nieuzywane ?
-def getParentsToReproduction(island, tabulist):
+def getParentsToReproduction(island):
     result = [0 for i in range(2)]
     firstId = random.randint(0, 9)
     secondId = random.randint(0, 9)
-    while (firstId == secondId):
+    while firstId == secondId:
         secondId = random.randint(0, 9)
 
     result[0] = island.creatures[firstId]
@@ -143,7 +130,6 @@ def getParentsToReproduction(island, tabulist):
 
 
 def main():
-
     k = problem.is_full_matrix()
     creatureslist = []
 
@@ -152,65 +138,78 @@ def main():
     else:
         fill_matrix(sizeTab, matr, 0)
 
-    # tworzymy 5 wysp
     island = Island(0, creatureslist)
     island2 = Island(1, creatureslist)
     island3 = Island(2, creatureslist)
-    island4 = Island(3, creatureslist)
-    island5 = Island(4, creatureslist)
-    island6 = Island(5, creatureslist)
-    island7 = Island(6, creatureslist)
+    #island4 = Island(3, creatureslist)
+    #island5 = Island(4, creatureslist)
+    #island6 = Island(5, creatureslist)
+    #island7 = Island(6, creatureslist)
 
     list_of_island = []
     list_of_island.append(island)
     list_of_island.append(island2)
     list_of_island.append(island3)
-    list_of_island.append(island4)
-    list_of_island.append(island5)
-    list_of_island.append(island6)
-    list_of_island.append(island7)
+    #list_of_island.append(island4)
+    #list_of_island.append(island5)
+    #list_of_island.append(island6)
+    #list_of_island.append(island7)
 
     connection_matrix = [[0 for _ in range(len(list_of_island))] for _ in range(len(list_of_island))]
-    for i in range(len(list_of_island)-1):
-        connection_matrix[i][i+1] = 1
-        connection_matrix[i+1][i] = 1
+    for i in range(len(list_of_island) - 1):
+        connection_matrix[i][i + 1] = 1
+        connection_matrix[i + 1][i] = 1
 
-    connection_matrix[len(list_of_island)-1][0] = 1
-    connection_matrix[0][len(list_of_island)-1] = 1
+    connection_matrix[len(list_of_island) - 1][0] = 1
+    connection_matrix[0][len(list_of_island) - 1] = 1
 
-    #dodatkowe piotrkowe połączenia
-
-    connection_matrix[0][3] = 1
-    connection_matrix[3][0] = 1
-    connection_matrix[1][6] = 1
-    connection_matrix[6][1] = 1
-    connection_matrix[2][5] = 1
-    connection_matrix[5][2] = 1
-
-    for row in connection_matrix:
-        print(row)
+    #connection_matrix[0][2] = 1
+    # connection_matrix[2][0] = 1
+    # connection_matrix[1][4] = 1
+    # connection_matrix[1][4] = 1
+    # connection_matrix[3][6] = 1
+    # connection_matrix[3][6] = 1
 
 
-
-    #0->1 1->2 2->3 3->4 4->5 5->6 6->0
-
+    stop_counter = 0
     for isl in list_of_island:
         create_first_population(isl)
-        make_children(isl)
-
-
-def make_children(island):
-    island.creatures = generation(island)
-    best = island.creatures[0].fenotyp
-    stop_counter = 0
-    while stop_counter < 1000:
-        island.creatures = generation(island)
-        stop_counter += 1
-        if best > island.creatures[0].fenotyp:
-            best = island.creatures[0].fenotyp
-            stop_counter = 0
+    best = list_of_island[0].creatures[0].fenotyp
+    while stop_counter < 330 * len(list_of_island):
+        for isl in list_of_island:
+            tab = make_children(isl, stop_counter, best)
+            stop_counter = tab[1]
+            best = tab[0]
+        for k in range(3):
+            for j in range(3):
+                if connection_matrix[k][j] == 1:
+                    losowa = random.randint(0, 100)
+                    if losowa < 5:
+                        losowa2 = random.randint(0, population_size - 1)
+                        helper = list_of_island[k].creatures[losowa2]
+                        list_of_island[k].creatures[losowa2] = list_of_island[j].creatures[losowa2]
+                        list_of_island[j].creatures[losowa2] = helper
+        print(stop_counter)
+        print(best)
     print("best: ", best)
 
+
+def make_children(island, stop_counter, best1):
+    # island.creatures = generation(island)
+    # best = island.creatures[0].fenotyp
+    t = [0 for j in range(2)]
+    iteration_counter = 0
+    while iteration_counter < 100:
+        island.creatures = generation(island)
+        stop_counter += 1
+        iteration_counter += 1
+        if best1 > island.creatures[0].fenotyp:
+            best1 = island.creatures[0].fenotyp
+            stop_counter = 0
+
+    t[0] = best1
+    t[1] = stop_counter
+    return t
 
 
 def create_first_population(island):
@@ -220,7 +219,7 @@ def create_first_population(island):
             tour[j] = j
         random.shuffle(tour)
 
-        c = Creature(i, tour, destination(sizeTab, matr, tour), 0, island.id)
+        c = Creature(i, tour, destination(sizeTab, matr, tour), 0, island.id, 0, 1 / (destination(sizeTab, matr, tour)))
         island.creatures.append(c)
 
     my_tour = tour.copy()
@@ -228,26 +227,26 @@ def create_first_population(island):
     optTour[0] = random.randint(0, sizeTab - 1)
     my_tour.remove(optTour[0])
     last_child = close_neighbour(optTour, matr, my_tour)
-    island.creatures.append(Creature(population_size - 1, last_child, destination(sizeTab, matr, last_child), 0, island.id))
+    island.creatures.append(
+        Creature(population_size - 1, last_child, destination(sizeTab, matr, last_child), 0, island.id, 0, 1 / (destination(sizeTab, matr, last_child))))
+
 
 def generation(island):
-
     tabulist = []
     for k in range(int(0.4 * population_size)):
         # parents = getBest(tournament(island))
         parents = roulette(island.creatures)
-
+        # parents = original_roulette(island.creatures)
 
         while parents in tabulist:
             parents = roulette(island.creatures)
             # parents = getBest(tournament(island))
+            # parents = original_roulette(island.creatures)
 
         tabulist.append(parents)
-
         los = random.randint(0, 100)
         if los > 5:
             crossingPMX(parents[0].genotyp, parents[1].genotyp, island.id)
-
     sorted_by_fenotype = sorted(crossed_creatures_list[island.id], key=lambda x: x.fenotyp, reverse=True)
     worst_creature = sorted_by_fenotype[0]
 
@@ -256,21 +255,20 @@ def generation(island):
     optTour[0] = random.randint(0, sizeTab - 1)
     my_tour.remove(optTour[0])
     my_tour2 = my_tour.copy()
-   #zmienna2 = close_neighbour(optTour, matr, my_tour)
+    # zmienna2 = close_neighbour(optTour, matr, my_tour)
 
-    if destination(sizeTab, matr, close_neighbour(optTour, matr,my_tour)) < worst_creature.fenotyp:
+    if destination(sizeTab, matr, close_neighbour(optTour, matr, my_tour)) < worst_creature.fenotyp:
         worst_creature.genotyp = close_neighbour(optTour, matr, my_tour2)
         worst_creature.fenotyp = destination(sizeTab, matr, worst_creature.genotyp)
+        worst_creature.fitness = 1 / worst_creature.fenotyp
 
     for element in crossed_creatures_list[island.id]:
         losowa = random.randint(0, 100)
         if losowa <= 5:
-            #print("ppb: ", losowa)
-            #print("id: ", element.id)
             # element.genotyp = invert(element.genotyp, random.randint(0,len(element.genotyp)-1), random.randint(0,len(element.genotyp)-1) )
             element.genotyp = heuristic_mutation(element.genotyp)
             element.fenotyp = destination(sizeTab, matr, element.genotyp)
-
+            element.fitness = 1 / element.fitness
     sorted_by_fenotype = sorted(crossed_creatures_list[island.id], key=lambda x: x.fenotyp)
 
     counter = 0
@@ -282,10 +280,18 @@ def generation(island):
             counter = 0
             current = element
 
-        if counter == 20:
+        if counter == 0.2 * population_size:
             invert(current.genotyp, random.randint(0, sizeTab - 1), random.randint(0, sizeTab - 1))
             invert(current.genotyp, random.randint(0, sizeTab - 1), random.randint(0, sizeTab - 1))
             invert(current.genotyp, random.randint(0, sizeTab - 1), random.randint(0, sizeTab - 1))
+            # insert(current.genotyp, random.randint(0, sizeTab - 1), random.randint(0, sizeTab - 1))
+            # insert(current.genotyp, random.randint(0, sizeTab - 1), random.randint(0, sizeTab - 1))
+            # insert(current.genotyp, random.randint(0, sizeTab - 1), random.randint(0, sizeTab - 1))
+            # current.genotyp = heuristic_mutation(current.genotyp)
+            # current.genotyp = heuristic_mutation(current.genotyp)
+            # current.genotyp = heuristic_mutation(current.genotyp)
+            current.fenotyp = destination(sizeTab, matr, element.genotyp)
+            current.fitness = 1 / current.fenotyp
             counter -= 1
             current = element
 
@@ -300,11 +306,9 @@ def generation(island):
 
     crossed_creatures_list[island.id] = sorted(crossed_creatures_list[island.id], key=lambda x: x.fenotyp)
 
-
     while len(crossed_creatures_list[island.id]) > population_size:
-        value = random.randint(20, len(crossed_creatures_list[island.id])-1)
+        value = random.randint(20, len(crossed_creatures_list[island.id]) - 1)
         crossed_creatures_list[island.id].remove(crossed_creatures_list[island.id][value])
-
     return crossed_creatures_list[island.id]
 
 
@@ -318,16 +322,22 @@ def invert(my_list, start, end):
     return my_list
 
 
+def insert(my_list, start, end):
+    k = my_list[start]
+    my_list[start] = my_list[end]
+    my_list[end] = k
+    return my_list
+
+
 def tournament(givenIsland):
     list = []
     tabu = []
 
     for i in range(5):
-        losowa = random.randint(0, 9)
+        losowa = random.randint(0, population_size - 1)
         while losowa in tabu:
-            losowa = random.randint(0, 9)
+            losowa = random.randint(0, population_size - 1)
 
-        # w tym miejsu juz na pewno losowej nie ma w tabu
         list.append(givenIsland.creatures[losowa])
         tabu.append(losowa)
 
@@ -340,7 +350,7 @@ def crossingPMX(parent1, parent2, id_wyspy):
 
     child1 = [0 for j in range(sizeTab)]
     child2 = [0 for j in range(sizeTab)]
-    if (k < j):
+    if k < j:
         m = j
         j = k
         k = m
@@ -369,42 +379,37 @@ def crossingPMX(parent1, parent2, id_wyspy):
     for i in range(sizeTab - (k - j + 1)):
         go1 = 0
         go2 = 0
-        while (index1 >= j and index1 <= k):
+        while index1 >= j and index1 <= k:
             index1 = index1 + 1
-        while (index2 >= j and index2 <= k):
+        while index2 >= j and index2 <= k:
             index2 = index2 + 1
         for i2 in range(j, k + 1):
-            if (helpparent1[i] == child1[i2]):
+            if helpparent1[i] == child1[i2]:
                 repeater = i2
                 value = mpxHelper(child1, parent1, repeater, j, k)
                 child1[index1] = value
                 go1 = 1
-            if (helpparent2[i] == child2[i2]):
+            if helpparent2[i] == child2[i2]:
                 repeater = i2
                 value = mpxHelper(child2, parent2, repeater, j, k)
                 child2[index2] = value
                 go2 = 1
 
-        if (go1 == 0):
+        if go1 == 0:
             child1[index1] = helpparent1[i]
         else:
             go1 = 0
-        if (go2 == 0):
+        if go2 == 0:
             child2[index2] = helpparent2[i]
         else:
             go2 = 0
         index1 = index1 + 1
         index2 = index2 + 1
 
-    # print("Creature1 before crossing: ", parent1)
-    # print("Creature2 before crossing: ", parent2)
-    # print("Creature1 after crossing:  ", child1)
-    # print("Creature2 after crossing:  ", child2)
-    # print()
 
     global id_counter
-    c4 = Creature(id_counter, child1, destination(sizeTab, matr, child1), 0, id_wyspy)
-    c5 = Creature(id_counter + 1, child2, destination(sizeTab, matr, child2), 0, id_wyspy)
+    c4 = Creature(id_counter, child1, destination(sizeTab, matr, child1), 0, id_wyspy, 0, 1 / (destination(sizeTab, matr, child1)))
+    c5 = Creature(id_counter + 1, child2, destination(sizeTab, matr, child2), 0, id_wyspy, 0, 1 / (destination(sizeTab, matr, child2)))
     id_counter += 2
 
     global crossed_creatures_list
@@ -414,7 +419,7 @@ def crossingPMX(parent1, parent2, id_wyspy):
 
 def mpxHelper(child, parent, value, j, k):
     for i in range(j, k + 1):
-        if (parent[value] == child[i]):
+        if parent[value] == child[i]:
             return mpxHelper(child, parent, i, j, k)
     return parent[value]
 
@@ -423,7 +428,7 @@ def mpxHelper(child, parent, value, j, k):
 # wartosc funkcji celu po wstawieniu do genotypu) i nadpisuje genotyp osobnika
 def heuristic_mutation(tour):
     maxValue = 4
-    losowa = random.randint(2, maxValue)
+    losowa = random.randint(4, maxValue)
 
     losowe_miasta = []
     losowe_miasta_indeksy = []
@@ -447,7 +452,6 @@ def heuristic_mutation(tour):
         for index in losowe_miasta_indeksy:
             tour[index] = perm[counter]
             counter += 1
-        counter = 0
 
         # wstawilo nowe indeksy do toura (zamnienilo losowe miasta)
         # teraz policz dla nich destynacje i zobacz czy jest mniejsza od min
@@ -459,7 +463,6 @@ def heuristic_mutation(tour):
     for index in losowe_miasta_indeksy:
         tour[index] = best_perm[counter]
         counter += 1
-    counter = 0
 
     return tour
 
@@ -478,13 +481,11 @@ def crossingCX(parent1, parent2, id_wyspy):
     pivot = 0
 
     helpList = []
-    #print(parent1)
-    #print(parent2)
     helpList.append(start)
-    while (start != end):
+    while start != end:
         helpList.append(end)
         for i in range(0, sizeTab):
-            if (parent1[i] == end):
+            if parent1[i] == end:
                 pivot = parent2[i]
         end = pivot
 
@@ -492,15 +493,15 @@ def crossingCX(parent1, parent2, id_wyspy):
         go1 = 0
         go2 = 0
         for i2 in helpList:
-            if (parent1[i] == i2):
+            if parent1[i] == i2:
                 go1 = 1
-            if (parent2[i] == i2):
+            if parent2[i] == i2:
                 go2 = 1
-        if (go1 == 0):
+        if go1 == 0:
             help1.append(parent1[i])
         else:
             go1 = 0
-        if (go2 == 0):
+        if go2 == 0:
             help2.append(parent2[i])
         else:
             go2 = 0
@@ -511,29 +512,28 @@ def crossingCX(parent1, parent2, id_wyspy):
     go2 = 0
     for i in range(0, sizeTab):
         for i2 in helpList:
-            if (parent1[i] == i2):
+            if parent1[i] == i2:
                 child1[i] = i2
                 go1 = 1
 
-            if (parent2[i] == i2):
+            if parent2[i] == i2:
                 child2[i] = i2
                 go2 = 1
 
-        if (go1 == 0):
+        if go1 == 0:
             child1[i] = help2[index1]
             index1 = index1 + 1
         else:
             go1 = 0
-        if (go2 == 0):
+        if go2 == 0:
             child2[i] = help1[index2]
             index2 = index2 + 1
         else:
             go2 = 0
 
-
     global id_counter
-    c4 = Creature(id_counter, child1, destination(sizeTab, matr, child1), 0, id_wyspy)
-    c5 = Creature(id_counter + 1, child2, destination(sizeTab, matr, child2), 0, id_wyspy)
+    c4 = Creature(id_counter, child1, destination(sizeTab, matr, child1), 0, id_wyspy, 0, 1 / (destination(sizeTab, matr, child1)))
+    c5 = Creature(id_counter + 1, child2, destination(sizeTab, matr, child2), 0, id_wyspy, 0, 1 / (destination(sizeTab, matr, child2)))
     id_counter += 2
 
     global crossed_creatures_list
@@ -557,6 +557,34 @@ def close_neighbour(optTour, matr, tour):
     return optTour
 
 
+def original_roulette(lista_osobnikow):
+    sum = 0
+    sum_of_ppb = 0
+    p = [0 for j in range(len(lista_osobnikow))]
+
+    for member in lista_osobnikow:
+        sum += 1 / member.fenotyp
+    for j in range(len(lista_osobnikow)):
+        p[j] = sum_of_ppb + ((1 / lista_osobnikow[j].fenotyp) / sum)
+        sum_of_ppb += (1 / lista_osobnikow[j].fenotyp) / sum
+
+    list = []
+    mytabu = []
+    for i in range(2):
+        h = lista_osobnikow[len(lista_osobnikow) - 1]
+        losowa = random.uniform(0, 1)
+        for j in range(len(lista_osobnikow) - 1):
+            if p[j] <= losowa <= p[j + 1]:
+                h = lista_osobnikow[j]
+        while h in mytabu:
+            losowa = random.uniform(0, 1)
+            for j in range(len(lista_osobnikow) - 1):
+                if p[j] <= losowa <= p[j + 1]:
+                    h = lista_osobnikow[j]
+
+        list.append(h)
+        mytabu.append(h)
+    return list
 
 
 def roulette(lista_osobnikow):
@@ -588,50 +616,14 @@ def roulette(lista_osobnikow):
 
     for i in range(2):
         losowa = random.choices(indeksy, p)
-        # losowa = numpy.random.choice(numpy.arange(0, population_size), p)
         while losowa[0] in tabu:
             losowa = random.choices(indeksy, p)
-            # losowa = numpy.random.choice(numpy.arange(0, population_size), p)
 
         list.append(lista_osobnikow[losowa[0]])
         tabu.append(losowa[0])
 
     return list
 
-    # mamy 2 losowych osobnikow ale wybranych z rozkładem jakims tam
-
 
 if __name__ == "__main__":
     main()
-
-# elitaryzm ???
-
-# pamietac o insercie do badań (wybor mutacji)   DONE
-
-# "sortujemy po fenotypie i jesli np 20 bedzie mialo te same wartosci to wybieramy losowego z tych 20 i robimy
-# 2 inserty losowe na nim" - Piotr 2022   DONE
-
-# warunek stopu to może być zarówno ilość pokoleń np 1000 albo ilosc pokolen bez poprawy !!!
-
-
-
-#trzeba dodać pola ppb i fitness w Creature (no chyba ze fitness to wiek)
-def roulette2(index):
-    sum = 0
-    sum_of_ppb = 0
-    new_population = []
-    for member in crossed_creatures_list[index]:
-        sum += member.fitness
-
-    for member in crossed_creatures_list[index]:
-        member.ppb = sum_of_ppb + (member.fitness / sum)
-        sum_of_ppb += member.ppb
-
-    while len(new_population) != int(1.2 * population_size):
-        for i in range(2):
-            number = random.randint(0,1)
-            for j in range(len(crossed_creatures_list[index])):
-                if number > crossed_creatures_list[index][j].ppb and number < crossed_creatures_list[index][j+1].ppb:
-                    new_population.append(crossed_creatures_list[index][j])
-
-    #end of function
